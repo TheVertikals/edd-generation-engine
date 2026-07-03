@@ -44,3 +44,23 @@ def validate_claims(claims: List[dict]) -> List[Tuple[str, str]]:
         if conf in OPINION_TIERS and not c.get("basis"):
             issues.append((cid, "opinion (%s) has no basis" % conf))
     return issues
+
+
+SOLUTIONSET_SCHEMA = {
+    "type": "object", "required": ["solutions"],
+    "properties": {"solutions": {"type": "array", "items": {"type": "object",
+        "required": ["id", "pain_id", "approach", "confidence", "sources", "basis"],
+        "properties": {"id": {"type": "string"}, "pain_id": {"type": "string"},
+            "approach": {"type": "string"}, "confidence": {"enum": list(CONFIDENCE_TIERS)},
+            "sources": {"type": "array", "items": {"type": "string"}},
+            "basis": {"type": "array", "items": {"type": "string"}}}}}},
+}
+CREATIVE_DIRECTION_SCHEMA = {
+    "type": "object", "required": ["claims"],
+    "properties": {"claims": {"type": "array", "items": {"type": "object",
+        "required": ["id", "statement", "confidence", "sources", "basis"],
+        "properties": {"id": {"type": "string"}, "statement": {"type": "string"},
+            "confidence": {"enum": list(CONFIDENCE_TIERS)},
+            "sources": {"type": "array", "items": {"type": "string"}},
+            "basis": {"type": "array", "items": {"type": "string"}}}}}},
+}
