@@ -15,7 +15,7 @@ def test_completed_stage_is_skipped_and_its_output_survives(tmp_path):
     seed_calls = {"n": 0}
 
     class CountingSeed(SeedStage):
-        def run(self, bundle):
+        def run(self, bundle, note=None):
             seed_calls["n"] += 1
             super().run(bundle)
 

@@ -7,7 +7,7 @@ from engine.stage import GateSpec, Stage
 class SeedStage(Stage):
     name = "seed"
 
-    def run(self, bundle: Bundle) -> None:
+    def run(self, bundle: Bundle, note: Optional[str] = None) -> None:
         src = bundle.read("intake/source.txt") or ""
         bundle.write("seed.md", "# seed\n\n" + src)
 
@@ -15,7 +15,7 @@ class SeedStage(Stage):
 class TransformStage(Stage):
     name = "transform"
 
-    def run(self, bundle: Bundle) -> None:
+    def run(self, bundle: Bundle, note: Optional[str] = None) -> None:
         seed = bundle.read("seed.md") or ""
         bundle.write("result.md", "# result\n\n" + seed.upper())
 
