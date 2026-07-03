@@ -42,3 +42,29 @@ def test_adversarial_verifier_flags_claim():
 def test_grounding_error_is_a_block():
     from engine.stage import StageBlocked
     assert issubclass(GroundingError, StageBlocked)
+
+
+def test_transitive_opinion_chain_grounds_through_a_fact():
+    claims = [
+        _c("f1", "verified", ["s1"]),
+        _c("o1", "inferred", [], basis=["f1"]),
+        _c("o2", "inferred", [], basis=["o1"]),
+    ]
+    assert audit(claims, corpus_ids={"s1"}).ok
+
+
+def test_cycle_without_a_fact_floor_is_blocked():
+    claims = [_c("a", "inferred", [], basis=["b"]), _c("b", "inferred", [], basis=["a"])]
+    r = audit(claims, corpus_ids={"s1"})
+    assert not r.ok and any("basis" in f.problem for f in r.findings)
+
+
+def test_opinion_basis_pointing_at_ungrounded_fact_is_blocked():
+    claims = [_c("f1", "verified", ["GHOST"]), _c("o1", "inferred", [], basis=["f1"])]
+    assert not audit(claims, corpus_ids={"s1"}).ok
+
+
+def test_duplicate_ids_are_flagged():
+    claims = [_c("p1", "verified", ["s1"]), _c("p1", "verified", ["s1"])]
+    r = audit(claims, corpus_ids={"s1"})
+    assert not r.ok and any("duplicate" in f.problem for f in r.findings)

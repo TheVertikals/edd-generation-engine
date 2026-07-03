@@ -27,10 +27,23 @@ class GroundingAuditStage(Stage):
             if line and not line.startswith("#"):
                 n += 1
                 facts["intake:%d" % n] = line
+        raw = bundle.read("brand.json")
+        if raw:
+            for i, c in enumerate(json.loads(raw).get("colors", [])):
+                facts["brand:%d" % i] = "brand %s %s" % (c.get("role", ""), c.get("hex", ""))
         return facts
 
+    def _claims(self, bundle: Bundle):
+        out = []
+        for rel, key in (("pains.json", "pains"), ("solutions.json", "solutions"),
+                         ("creative-direction.json", "claims")):
+            raw = bundle.read(rel)
+            if raw:
+                out.extend(json.loads(raw).get(key, []))
+        return out
+
     def run(self, bundle: Bundle, note: Optional[str] = None) -> None:
-        claims = json.loads(bundle.read("pains.json") or '{"pains": []}').get("pains", [])
+        claims = self._claims(bundle)
         grounding = self._corpus(bundle)
         report = audit(claims, corpus_ids=grounding.keys(), generator=self.gen, grounding=grounding,
                        block_speculative=self.block_speculative, require_nonempty=self.require_nonempty)
