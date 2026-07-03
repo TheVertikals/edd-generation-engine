@@ -20,7 +20,7 @@ def test_synthesize_fills_docs_from_text_and_manifest(tmp_path):
     SynthesizeStage(FakeGenerator(lambda r: GenResult(ok=True, text="## drafted\n"))).run(b)
     assert "drafted" in b.read("2_ENDSTATE_SPEC.md")
     m = json.loads(b.read(".edd-manifest.json"))
-    assert m["artifacts"]["8_SCOPED_PROPOSAL.md"]["present"] is True
+    assert m["artifacts"]["scoped_proposal"]["present"] is True   # semantic-keyed (edd-bundle-manifest/1)
 
 
 def test_synthesize_raises_when_a_doc_is_empty(tmp_path):

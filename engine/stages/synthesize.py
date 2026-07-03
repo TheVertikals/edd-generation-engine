@@ -41,7 +41,13 @@ class SynthesizeStage(Stage):
             if not res.ok or not (res.text or "").strip():
                 raise GenerationError(res.error or "synthesize produced no copy for %s" % name)
             bundle.write(name, res.text)
-        write_manifest(bundle, list(_DOCS.keys()) + ["0_CUSTOMER_INTAKE.md", "surfaces/prototype.html"])
+        write_manifest(bundle, {
+            "intake": "0_CUSTOMER_INTAKE.md",
+            "spec": "2_ENDSTATE_SPEC.md",
+            "seed": "6_SEED_DATA.md",
+            "scoped_proposal": "8_SCOPED_PROPOSAL.md",
+            "tracker": "9_CONTINUITY_TRACKER.md",
+        }, prototypes=["surfaces/prototype.html"])
 
     def gate(self, bundle: Bundle) -> Optional[GateSpec]:
         return GateSpec(question="bundle ready?", preview="8_SCOPED_PROPOSAL.md")

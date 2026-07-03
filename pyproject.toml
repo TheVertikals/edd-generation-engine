@@ -1,3 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edd-generation-engine"
+version = "0.2.0"
+description = "Agnostic tier-2 orchestration + generation engine of the EDD autonomous pipeline"
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+include = ["engine*"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
