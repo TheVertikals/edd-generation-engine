@@ -1,0 +1,2 @@
+Geist & Geist Mono are licensed under the SIL Open Font License 1.1.
+Source: https://github.com/vercel/geist-font

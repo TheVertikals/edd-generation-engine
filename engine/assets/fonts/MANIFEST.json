@@ -1,0 +1,14 @@
+{
+  "geist": {
+    "family": "Geist",
+    "weights": {
+      "400": "geist-400.b64"
+    }
+  },
+  "geist-mono": {
+    "family": "Geist Mono",
+    "weights": {
+      "400": "geist-mono-400.b64"
+    }
+  }
+}
