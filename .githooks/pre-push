@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+echo "[pre-push] make test..."
+if ! make test; then echo "[pre-push] tests FAILED — push aborted." >&2; exit 1; fi
