@@ -72,10 +72,19 @@ class ClaudeCliGenerator(Generator):
     (avoids ARG_MAX and `ps` leakage) and is REDACTED first. Fail-closed: refuses to run
     without a redactor unless `allow_cleartext=True`. `run` is injectable for hermetic tests.
 
-    CLI flag contract (to be confirmed by the live spike): `-p` prompt-mode reading stdin,
-    `--output-format json` -> {"result": "<text>"}, tool lockdown via --allowedTools /
-    --disallowedTools, structured output via --json-schema. If the real flags differ, correct
-    here and keep the hermetic tests green."""
+    CLI flag contract (CONFIRMED against claude CLI 2.1.199):
+      * `-p` / `--print`: headless mode; with no prompt argv arg the prompt is read from STDIN.
+      * `--output-format json`: stdout is a single JSON envelope, e.g.
+        {"type": "result", "subtype": "success", "is_error": false,
+         "result": "<assistant text>", "structured_output": {...}, ...}.
+        `structured_output` is present (as a parsed object) only when --json-schema was
+        given; `result` then also holds the same JSON as a string.
+      * `--json-schema <schema>`: structured output validated against the inline JSON Schema.
+      * Tool lockdown: `--tools ""` disables ALL built-in tools (documented: 'Use "" to
+        disable all tools'); `--strict-mcp-config` with no --mcp-config disables all MCP
+        servers; `--disallowedTools "..."` kept as a redundant deny layer.
+        (--allowedTools only pre-approves permissions; it does not restrict availability.)
+      * `--model <model>`: alias (e.g. "fable") or full name (e.g. "claude-fable-5")."""
 
     def __init__(self, redactor=None, allow_cleartext: bool = False, run=None, claude_bin: str = "claude"):
         if redactor is None and not allow_cleartext:
@@ -89,7 +98,10 @@ class ClaudeCliGenerator(Generator):
         if self.redactor is not None:
             prompt = self.redactor.redact(prompt)
         cmd = [self.claude_bin, "-p", "--output-format", "json",
-               "--allowedTools", "", "--disallowedTools", "Bash Edit Write Read WebFetch WebSearch"]
+               "--tools", "", "--strict-mcp-config",
+               "--disallowedTools", "Bash Edit Write Read WebFetch WebSearch"]
+        if req.model:
+            cmd += ["--model", req.model]
         if req.schema is not None:
             cmd += ["--json-schema", json.dumps(req.schema)]
         try:
@@ -107,15 +119,23 @@ class ClaudeCliGenerator(Generator):
             envelope = json.loads(stdout)
         except ValueError:
             return GenResult(ok=False, error="parse error: CLI output was not JSON")
-        body = envelope.get("result", stdout) if isinstance(envelope, dict) else stdout
-        data: Optional[dict] = None
-        if isinstance(body, dict):
-            data = body
-        elif isinstance(body, str):
+        if not isinstance(envelope, dict):
+            return GenResult(ok=False, error="parse error: CLI envelope was not a JSON object")
+        if envelope.get("is_error"):
+            detail = envelope.get("result") or envelope.get("subtype") or "unknown"
+            return GenResult(ok=False, error="CLI reported error: %s" % detail)
+        text = envelope.get("result")
+        text = text if isinstance(text, str) else ""
+        data = envelope.get("structured_output")
+        if not isinstance(data, dict):
+            data = None
+        if data is None and text:
             try:
-                data = json.loads(body)
+                maybe = json.loads(text)
             except ValueError:
-                data = None
+                maybe = None
+            if isinstance(maybe, dict):
+                data = maybe
         if schema_requested and not isinstance(data, dict):
             return GenResult(ok=False, error="schema requested but model output was not a JSON object")
-        return GenResult(ok=True, text=body if isinstance(body, str) else "", data=data)
+        return GenResult(ok=True, text=text, data=data)
