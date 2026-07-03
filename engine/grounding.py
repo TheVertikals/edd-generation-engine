@@ -49,9 +49,10 @@ def _grounded(cid, by_id, corpus, memo, stack):
 
 def audit(claims: List[dict], corpus_ids: Iterable[str], generator: Optional[Generator] = None,
           grounding: Optional[dict] = None, block_speculative: bool = False,
-          require_nonempty: bool = False) -> AuditReport:
+          require_nonempty: bool = False, waivers: Optional[Iterable[str]] = None) -> AuditReport:
     corpus = set(corpus_ids)
     by_id = {c.get("id"): c for c in claims}
+    waived = set(waivers or [])   # claim ids a human has approved as speculative (ONLY speculative waivable)
     findings: List[AuditFinding] = []
 
     if require_nonempty and not claims:
@@ -78,8 +79,11 @@ def audit(claims: List[dict], corpus_ids: Iterable[str], generator: Optional[Gen
                 findings.append(AuditFinding(
                     cid, "opinion basis does not trace to a grounded fact (missing/cyclic/ungrounded)"))
         elif conf == "speculative":
-            findings.append(AuditFinding(cid, "speculative claim present",
-                                         severity="hard" if block_speculative else "soft"))
+            is_waived = cid in waived
+            findings.append(AuditFinding(
+                cid,
+                "speculative claim present (human-waived)" if is_waived else "speculative claim present",
+                severity="soft" if (is_waived or not block_speculative) else "hard"))
 
     if generator is not None:
         ids = sorted(str(i) for i in by_id if i)

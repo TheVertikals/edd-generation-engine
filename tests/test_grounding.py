@@ -68,3 +68,20 @@ def test_duplicate_ids_are_flagged():
     claims = [_c("p1", "verified", ["s1"]), _c("p1", "verified", ["s1"])]
     r = audit(claims, corpus_ids={"s1"})
     assert not r.ok and any("duplicate" in f.problem for f in r.findings)
+
+
+def test_waived_speculative_claim_passes():
+    claims = [_c("p1", "speculative", [])]
+    assert not audit(claims, corpus_ids={"s1"}, block_speculative=True).ok
+    r = audit(claims, corpus_ids={"s1"}, block_speculative=True, waivers=["p1"])
+    assert r.ok and any("human-waived" in f.problem for f in r.findings)
+
+
+def test_waiver_cannot_launder_a_manufactured_fact():
+    claims = [_c("p1", "verified", ["GHOST"])]   # a fact with an unresolvable source is not waivable
+    assert not audit(claims, corpus_ids={"s1"}, waivers=["p1"]).ok
+
+
+def test_waiver_only_applies_to_listed_ids():
+    claims = [_c("p1", "speculative", []), _c("p2", "speculative", [])]
+    assert not audit(claims, corpus_ids={"s1"}, block_speculative=True, waivers=["p1"]).ok
