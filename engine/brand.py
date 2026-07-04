@@ -41,7 +41,9 @@ def _reject_if_bad(ip_str: str) -> None:
         if _embedded_v4(addr) is not None:      # R3: mapped/6to4/NAT64 are never legit in a brand URL
             raise ValueError("brand_url uses an IPv4-embedded IPv6 form (%s) — refused" % ip_str)
         if (addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved
-                or addr.is_multicast or addr.is_unspecified):
+                or addr.is_multicast or addr.is_unspecified or addr.is_site_local):
+            # is_site_local closes the fec0::/10 gap: ipaddress reports is_global=True for it,
+            # so a `not is_global` gate would NOT catch it — reject the deprecated network directly.
             raise ValueError("brand_url resolves to a non-public address (%s) — refused" % ip_str)
     else:
         if any(addr in net for net in _BAD_V4):

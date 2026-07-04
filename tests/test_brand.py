@@ -41,6 +41,7 @@ from engine import brand
     "::ffff:100.95.134.80",       # N1: mapped CGNAT (ark) — must block on 3.9 AND 3.12
     "::ffff:10.0.0.5", "::ffff:1.1.1.1",    # R3: ALL mapped forms blocked, incl. mapped-PUBLIC
     "2002:0a00:0001::", "64:ff9b::a00:1",   # 6to4 + NAT64 (embedded private)
+    "fec0::1", "fecf:ffff:ffff:ffff::1",    # deprecated IPv6 site-local fec0::/10 (is_global lies True)
 ])
 def test_reject_bad_addresses(ip):
     with pytest.raises(ValueError):
@@ -48,6 +49,7 @@ def test_reject_bad_addresses(ip):
 
 def test_public_address_ok():
     brand._reject_if_bad("1.1.1.1")           # no raise
+    brand._reject_if_bad("2606:4700:4700::1111")   # a real public IPv6 must still pass
 
 def test_resolve_pinned_validates_all_and_pins(monkeypatch):
     monkeypatch.setattr(brand.socket, "getaddrinfo",
