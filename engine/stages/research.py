@@ -3,6 +3,7 @@ from typing import Dict, Optional
 
 from engine.artifacts import PAINSET_SCHEMA
 from engine.bundle import Bundle
+from engine.corpus import build_corpus
 from engine.generator import GenRequest, Generator
 from engine.grounding import audit
 from engine.stage import GateSpec, Stage
@@ -10,8 +11,9 @@ from engine.stage import GateSpec, Stage
 _INSTRUCTIONS = (
     "From the GROUNDING FACTS (the customer intake), identify the customer's pain points — "
     "both stated and latent. Return a JSON object matching the schema: a `pains` array where "
-    "each pain has id, statement, kind (stated|latent), confidence, sources, basis. Cite intake "
-    "source ids in `sources` for stated pains; latent pains are `inferred` and must list their "
+    "each pain has id, statement, kind (stated|latent), confidence, sources, basis. Cite "
+    "GROUNDING FACT ids (any `intake:*` or `corpus:*` id shown) in `sources` for stated pains; "
+    "latent pains are `inferred` and must list their "
     "`basis` (the stated-pain ids they reason from)."
 )
 
@@ -28,14 +30,7 @@ class ResearchStage(Stage):
         self.max_regen = max_regen
 
     def _grounding(self, bundle: Bundle) -> Dict[str, str]:
-        doc = bundle.read("0_CUSTOMER_INTAKE.md") or ""
-        facts, n = {}, 0
-        for line in doc.splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                n += 1
-                facts["intake:%d" % n] = line
-        return facts
+        return build_corpus(bundle)
 
     def run(self, bundle: Bundle, note: Optional[str] = None) -> None:
         grounding = self._grounding(bundle)

@@ -110,3 +110,19 @@ def test_malformed_waiver_file_fails_closed_with_report(tmp_path):
     with pytest.raises(GroundingError):
         GroundingAuditStage().run(b)
     assert json.loads(b.read("audit-report.json"))["ok"] is False   # report still written
+
+
+import json
+from engine.bundle import Bundle
+from engine.stages.audit import GroundingAuditStage
+
+def test_claim_citing_corpus_id_passes_audit(tmp_path):
+    b = Bundle(str(tmp_path / "b"))
+    b.write("0_CUSTOMER_INTAKE.md", "onboarding is slow\n")
+    b.write("corpus-intelligence.json", json.dumps({"items": [
+        {"id": "mkt-1", "statement": "week-2 activation is the churn driver"}]}))
+    b.write("pains.json", json.dumps({"pains": [
+        {"id": "p1", "statement": "activation gap drives churn", "confidence": "corroborated",
+         "sources": ["corpus:mkt-1"]}]}))
+    GroundingAuditStage(require_nonempty=False).run(b)      # no raise
+    assert json.loads(b.read("audit-report.json"))["ok"] is True

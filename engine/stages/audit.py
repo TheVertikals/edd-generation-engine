@@ -2,6 +2,7 @@ import json
 from typing import Dict, Optional
 
 from engine.bundle import Bundle
+from engine.corpus import build_corpus
 from engine.generator import Generator
 from engine.grounding import GroundingError, audit
 from engine.stage import Stage
@@ -20,18 +21,7 @@ class GroundingAuditStage(Stage):
         self.require_nonempty = require_nonempty
 
     def _corpus(self, bundle: Bundle) -> Dict[str, str]:
-        doc = bundle.read("0_CUSTOMER_INTAKE.md") or ""
-        facts, n = {}, 0
-        for line in doc.splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                n += 1
-                facts["intake:%d" % n] = line
-        raw = bundle.read("brand.json")
-        if raw:
-            for i, c in enumerate(json.loads(raw).get("colors", [])):
-                facts["brand:%d" % i] = "brand %s %s" % (c.get("role", ""), c.get("hex", ""))
-        return facts
+        return build_corpus(bundle)
 
     def _claims(self, bundle: Bundle):
         out = []
