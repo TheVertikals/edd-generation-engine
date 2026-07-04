@@ -10,10 +10,13 @@ from typing import Callable, List, Optional, Set
 from engine.generator import GenRequest, GenResult, Generator
 from engine.pii import residual_pii
 from engine.redact import Redactor
+from engine.stage import StageBlocked
 
 
-class EgressError(Exception):
-    """Raised to BLOCK egress: unconfigured redaction, a missing preview, or operator rejection."""
+class EgressError(StageBlocked):
+    """Raised to BLOCK egress: unconfigured redaction, a missing preview, or operator rejection.
+    Subclasses StageBlocked (F-6) so an operator egress-reject surfaces as run status 'blocked'
+    — a first-class human decision — rather than an unexpected 'error' crash."""
 
 
 @dataclass
@@ -36,17 +39,18 @@ class EgressPolicy:
     def scrub(self, text: str) -> str:
         return residual_pii(self._redactor.redact(text or ""))
 
-    def gate(self, prompt: str) -> None:
-        if self.allow_cleartext:
-            return
-        digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
-        if digest in self._approved:
+    def gate(self, prompt: str, key: Optional[str] = None) -> None:
+        # Dedup the operator preview on the client-content `key` (the scrubbed grounding). A
+        # None key (empty grounding) hashes the PROMPT so it is never a skeleton key (audit B①).
+        if key is None:
+            key = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        if self.allow_cleartext or key in self._approved:
             return
         if self.preview is None:
             raise EgressError("no operator preview configured — refusing to egress client content")
         if not self.preview(prompt):
             raise EgressError("operator rejected the egress preview")
-        self._approved.add(digest)
+        self._approved.add(key)
 
 
 class EgressGuard(Generator):
@@ -69,5 +73,11 @@ class EgressGuard(Generator):
             schema=req.schema,
             note=s(req.note) if req.note else req.note,
             timeout_s=req.timeout_s, model=req.model)
-        self.policy.gate(self.compose_prompt(safe))          # every distinct payload (F4)
+        # B①: dedup the operator preview on the SCRUBBED CLIENT CONTENT (the grounding), not the
+        # full prompt — later-stage instruction differences must not each demand a tap. An EMPTY
+        # grounding -> None -> gate() hashes the prompt (never a skeleton key).
+        content_key = (hashlib.sha256(
+            "\n".join("%s=%s" % (k, grounding[k]) for k in sorted(grounding)).encode("utf-8")).hexdigest()
+            if grounding else None)
+        self.policy.gate(self.compose_prompt(safe), content_key)
         return self.inner.generate(safe)
