@@ -1,0 +1,6 @@
+pack_version: 1
+produced_at: "2026-07-03T12:00:00Z"
+beacon_id: "01KVEXAMPLEBEACONID0000"   # join key -> engagement project.yaml id
+sources:
+  - cap-20260701-discovery
+  - note-onboarding-pain
