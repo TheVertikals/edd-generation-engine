@@ -16,3 +16,26 @@ def test_pack_to_bundle_materializes_source_and_returns_manifest(tmp_path):
 
     assert bundle.read("intake/source.txt") == "call notes"
     assert manifest["beacon_id"] == "01ADP"
+
+
+import json
+from engine.adapter import pack_to_bundle
+from engine.bundle import Bundle
+from engine.inputpack import InputPack
+
+def test_pack_corpus_intelligence_materialized(tmp_path):
+    p = tmp_path / "pack"; p.mkdir()
+    (p / "inputpack.yaml").write_text("beacon_id: 01X\n", encoding="utf-8")
+    (p / "transcript.txt").write_text("t", encoding="utf-8")
+    (p / "corpus-intelligence.json").write_text(json.dumps({"items": [{"id": "c1", "statement": "s"}]}))
+    b = Bundle(str(tmp_path / "b"))
+    pack_to_bundle(InputPack(str(p)), b)
+    assert json.loads(b.read("corpus-intelligence.json"))["items"][0]["id"] == "c1"
+
+def test_pack_without_corpus_intelligence_ok(tmp_path):
+    p = tmp_path / "pack"; p.mkdir()
+    (p / "inputpack.yaml").write_text("beacon_id: 01X\n", encoding="utf-8")
+    (p / "transcript.txt").write_text("t", encoding="utf-8")
+    b = Bundle(str(tmp_path / "b"))
+    pack_to_bundle(InputPack(str(p)), b)               # no crash
+    assert b.read("corpus-intelligence.json") is None

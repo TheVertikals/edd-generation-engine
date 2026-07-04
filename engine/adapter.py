@@ -9,4 +9,7 @@ def pack_to_bundle(pack: InputPack, bundle: Bundle) -> dict:
     so the runner never sees where the input came from."""
     manifest = pack.manifest()
     bundle.write("intake/source.txt", pack.read("transcript.txt") or "")
+    corpus = pack.read("corpus-intelligence.json")     # optional generic grounding, present before research
+    if corpus is not None:
+        bundle.write("corpus-intelligence.json", corpus)
     return manifest
