@@ -17,7 +17,7 @@ def _pack(tmp_path):
     d = tmp_path / "pack"
     d.mkdir()
     (d / "inputpack.yaml").write_text(
-        "beacon_id: 01FULL\nbrand_colors: #0A2540,#0073CF\n", encoding="utf-8")
+        'beacon_id: 01FULL\nbrand_colors: "#0A2540,#0073CF"\n', encoding="utf-8")
     (d / "transcript.txt").write_text("VP: onboarding takes 6 weeks\nno self-serve docs", encoding="utf-8")
     return InputPack(str(d))
 

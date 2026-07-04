@@ -10,7 +10,7 @@ def _pack(tmp_path, extra=""):
 
 
 def test_pack_colors_are_authoritative(tmp_path):
-    b = capture_brand(_pack(tmp_path, "brand_colors: #0A2540,#0073CF\n"))
+    b = capture_brand(_pack(tmp_path, 'brand_colors: "#0A2540,#0073CF"\n'))
     assert "#0073cf" in [c["hex"] for c in b["colors"]] and b["colors"][0]["source"] == "pack"
 
 
