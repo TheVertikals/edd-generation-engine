@@ -29,3 +29,44 @@ def test_fetch_rejects_non_http_scheme(tmp_path):
 def test_no_brand_source_returns_empty(tmp_path):
     b = capture_brand(_pack(tmp_path))
     assert b["colors"] == [] and b["fonts"] == []
+
+
+# append to tests/test_brand.py
+import io, pytest
+from engine import brand
+
+@pytest.mark.parametrize("ip", [
+    "10.0.0.5", "127.0.0.1", "100.95.134.80", "169.254.169.254", "0.0.0.0",
+    "::1", "fc00::1", "fe80::1",
+    "::ffff:100.95.134.80",       # N1: mapped CGNAT (ark) — must block on 3.9 AND 3.12
+    "::ffff:10.0.0.5", "::ffff:1.1.1.1",    # R3: ALL mapped forms blocked, incl. mapped-PUBLIC
+    "2002:0a00:0001::", "64:ff9b::a00:1",   # 6to4 + NAT64 (embedded private)
+])
+def test_reject_bad_addresses(ip):
+    with pytest.raises(ValueError):
+        brand._reject_if_bad(ip)
+
+def test_public_address_ok():
+    brand._reject_if_bad("1.1.1.1")           # no raise
+
+def test_resolve_pinned_validates_all_and_pins(monkeypatch):
+    monkeypatch.setattr(brand.socket, "getaddrinfo",
+        lambda h, *a, **k: [(2, 1, 6, "", ("1.1.1.1", 0)), (2, 1, 6, "", ("10.0.0.9", 0))])
+    with pytest.raises(ValueError):           # a mixed public+private host is refused
+        brand._resolve_pinned("evil.example")
+
+def test_fetch_pins_and_revalidates_redirect(monkeypatch):
+    calls = {"open": []}
+    class _Sock:
+        def __init__(self, body): self._b = io.BytesIO(body)
+        def makefile(self, *a, **k): return self._b
+        def sendall(self, *a): pass
+        def close(self): pass
+        def settimeout(self, *a): pass
+    def fake_open(family, ip, port, scheme, host, timeout=15):
+        calls["open"].append(ip)
+        return _Sock(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")
+    monkeypatch.setattr(brand.socket, "getaddrinfo",
+                        lambda h, *a, **k: [(2, 1, 6, "", ("1.1.1.1", 0))])
+    body = brand._default_fetch("https://brand.example/", _open=fake_open)
+    assert body == "hello" and calls["open"] == ["1.1.1.1"]   # connected to the VALIDATED ip (pin)
