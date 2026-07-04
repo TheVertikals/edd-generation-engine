@@ -7,9 +7,13 @@ from engine.bundle import Bundle
 @dataclass
 class GateSpec:
     """The human decision to fire after a stage. `preview` points at a bundle-relative
-    artifact (e.g. a mockup) for visual gates; the skeleton carries it opaquely."""
+    artifact (e.g. a mockup) for visual gates; the skeleton carries it opaquely.
+    The Runner enriches the spec before dispatch: `stage` is the firing stage's name
+    (for routing), and `preview_content` is the resolved text of `preview`."""
     question: str
     preview: Optional[str] = None
+    stage: Optional[str] = None
+    preview_content: Optional[str] = None
 
 
 class StageBlocked(Exception):

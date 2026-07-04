@@ -1,5 +1,5 @@
 from engine.bundle import Bundle
-from engine.gate import AutoApproveGate, ScriptedGate, Verdict
+from engine.gate import AutoApproveGate, Gate, ScriptedGate, Verdict
 from engine.runner import Runner
 from engine.stage import Stage
 from engine.stages.demo import SeedStage, TransformStage
@@ -89,6 +89,35 @@ def test_revise_passes_note_to_rerun(tmp_path):
     b = Bundle(str(tmp_path))
     Runner(b, ScriptedGate([Verdict("revise", note="tighten it"), Verdict("approve")])).run([NoteStage()])
     assert seen == [None, "tighten it"]
+
+
+def test_unknown_verdict_fails_closed_rejected(tmp_path):
+    # A2: a malformed/unknown verdict must NOT trigger revise/regenerate — fail closed.
+    b = Bundle(str(tmp_path))
+    b.write("intake/source.txt", "raw")
+    out = Runner(b, ScriptedGate([Verdict("garbage")])).run(_pipeline())
+    assert out["status"] == "rejected"
+    assert out["rejected_at"] == "transform"
+    assert out["completed"] == ["seed"]
+
+
+def test_runner_enriches_spec_with_stage_identity_and_preview_content(tmp_path):
+    # A1: the Runner stamps spec.stage and resolves preview_content from the bundle.
+    captured = []
+
+    class CapturingGate(Gate):
+        def request(self, spec):
+            captured.append(spec)
+            return Verdict("approve")
+
+    b = Bundle(str(tmp_path))
+    b.write("intake/source.txt", "raw")
+    out = Runner(b, CapturingGate()).run(_pipeline())
+    assert out["status"] == "complete"
+    spec = captured[-1]
+    assert spec.stage == "transform"
+    assert spec.preview_content is not None
+    assert spec.preview_content == b.read("result.md")
 
 
 def test_blocked_distinct_from_error(tmp_path):

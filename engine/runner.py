@@ -35,12 +35,14 @@ class Runner:
                 spec = stage.gate(self.bundle)
                 if spec is None:
                     break  # no gate -> stage is done
+                spec.stage = stage.name                                  # A1: stage identity for routing
+                if spec.preview:
+                    spec.preview_content = self.bundle.read(spec.preview)  # A1: resolve the preview content
                 verdict = self.gate.request(spec)
                 if verdict.decision == "approve":
                     break
-                if verdict.decision == "reject":
+                if verdict.decision != "revise":                         # A2: reject OR unknown -> fail-closed
                     return self._result("rejected", rejected_at=stage.name)
-                # revise: re-run the stage, bounded, carrying the operator's note
                 revisions += 1
                 if revisions > self.max_revisions:
                     return self._result("rejected", rejected_at=stage.name)
