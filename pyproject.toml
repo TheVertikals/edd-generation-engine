@@ -8,9 +8,17 @@ version = "0.2.0"
 description = "Agnostic tier-2 orchestration + generation engine of the EDD autonomous pipeline"
 requires-python = ">=3.9"
 
+[project.optional-dependencies]
+# Light dev-only test deps. pytest-bdd pinned <8 because 8.x swaps the hand-rolled Gherkin
+# parser for gherkin-official (a behavior-changing migration) — NOT for Python 3.9 (8.x still
+# supports 3.9). Transitives are pure-Python: Mako, packaging, parse, parse-type, typing-extensions.
+test = ["pytest>=7", "pytest-bdd>=6,<8"]
+
 [tool.setuptools.packages.find]
 include = ["engine*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+# pytest-bdd resolves .feature paths in scenarios(...) relative to this dir.
+bdd_features_base_dir = "tests/bdd/features"
