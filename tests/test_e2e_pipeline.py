@@ -1,6 +1,7 @@
 import json
 
 from engine.bundle import Bundle
+from engine.egress import EgressPolicy
 from engine.gate import AutoApproveGate
 from engine.generator import FakeGenerator, GenResult
 from engine.inputpack import InputPack
@@ -50,7 +51,7 @@ def test_full_pipeline_produces_a_grounded_bundle(tmp_path):
     g = FakeGenerator(_responder)
     pack = _pack(tmp_path)
     b = Bundle(str(tmp_path / "b"))
-    stages = build_pipeline(pack, g)
+    stages = build_pipeline(pack, g, EgressPolicy(alias="acme", terms=[], allow_cleartext=True))
     out = Runner(b, AutoApproveGate()).run(stages)
     assert out["status"] == "complete"
     assert out["completed"] == ["intake", "research", "solution", "audit", "mockup", "synthesize"]
@@ -73,7 +74,7 @@ def test_pipeline_blocks_ungrounded_solution_before_mockup(tmp_path):
     g = FakeGenerator(bad)
     pack = _pack(tmp_path)
     b = Bundle(str(tmp_path / "b"))
-    stages = build_pipeline(pack, g)
+    stages = build_pipeline(pack, g, EgressPolicy(alias="acme", terms=[], allow_cleartext=True))
     out = Runner(b, AutoApproveGate()).run(stages)
     assert out["status"] == "blocked" and out["blocked_at"] == "audit"
     assert not b.exists("surfaces/prototype.html")   # mockup never ran

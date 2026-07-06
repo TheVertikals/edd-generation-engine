@@ -9,6 +9,7 @@ a downstream root's engine-stage order equal to STAGE_ORDER. Agnostic: no brand/
 references (tests/test_agnosticism.py)."""
 from typing import List, Optional, Tuple
 
+from engine.egress import EgressGuard, EgressPolicy
 from engine.generator import Generator
 from engine.inputpack import InputPack
 from engine.stage import Stage
@@ -23,18 +24,21 @@ STAGE_ORDER: Tuple[str, ...] = (
     "intake", "research", "solution", "audit", "mockup", "synthesize")
 
 
-def build_pipeline(pack: InputPack, generator: Generator,
+def build_pipeline(pack: InputPack, generator: Generator, egress: EgressPolicy,
                    *, verifier: Optional[Generator] = None) -> List[Stage]:
     """Return the ordered production stages the Runner walks, gating between each.
 
-    `generator` drives every generating stage; `verifier` (default: `generator`) runs the
-    mockup's one adversarial sweep. Intake is deterministic and does no generation."""
-    v = verifier if verifier is not None else generator
+    Cap B — one guarded egress throat: every generating stage receives ONE shared EgressGuard
+    wrapping `generator` under `egress`; dedup state lives on the policy, so approvals are shared
+    across stages. Intake is deterministic (no egress) and is left unwrapped. `verifier` (default:
+    the same guarded generator) runs the mockup's one adversarial sweep, also through the guard."""
+    guard = EgressGuard(generator, egress)
+    guarded_verifier = guard if verifier is None else EgressGuard(verifier, egress)
     return [
         IntakeStage(pack),
-        ResearchStage(generator),
-        SolutionStage(generator, pack),
-        GroundingAuditStage(generator=generator),
-        MockupStage(generator, verifier=v),
-        SynthesizeStage(generator),
+        ResearchStage(guard),
+        SolutionStage(guard, pack),
+        GroundingAuditStage(generator=guard),
+        MockupStage(guard, verifier=guarded_verifier),
+        SynthesizeStage(guard),
     ]
