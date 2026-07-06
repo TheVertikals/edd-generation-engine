@@ -64,17 +64,29 @@ def _offbrand(ctx, tmp_path):
 
 @when("the mockup stage runs")
 def _run_mockup(ctx):
-    off = FakeGenerator(lambda req: GenResult(ok=True, text="<body><h2>no brand no cite</h2></body>"))
+    # Off-brand but PURE: the citation resolves (sol1 is grounded) so purity passes and ONLY
+    # brand-fidelity fails — isolating the brand check (mirrors test_stage_mockup.py). Capture the
+    # requests so we can prove the stage actually iterated rather than merely writing a file.
+    reqs = []
+
+    def responder(req):
+        reqs.append(req)
+        return GenResult(ok=True, text='<body><h2 data-source="sol1">x</h2></body>')
+
+    ctx["reqs"] = reqs
     ctx["err"] = None
     try:
-        MockupStage(off, max_regen=1).run(ctx["bundle"])
+        MockupStage(FakeGenerator(responder), max_regen=1).run(ctx["bundle"])
     except PurityError as e:
         ctx["err"] = e
 
 
 @then("a mockup that ignored the brand is regenerated")
 def _regenerated(ctx):
-    # the stage wrote its last failing candidate before raising -> evidence it iterated
+    # Prove the iteration actually happened: max_regen(1) + 1 == 2 generate() calls, and the SECOND
+    # request carried the regeneration feedback (mockup.py's var(--brand-primary) fix string).
+    assert len(ctx["reqs"]) == 2
+    assert "var(--brand-primary)" in (ctx["reqs"][1].note or "")
     assert ctx["bundle"].exists("surfaces/prototype.html")
 
 
