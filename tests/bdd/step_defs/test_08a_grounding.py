@@ -89,9 +89,19 @@ def _transitive_ok(ctx):
 
 @then("an opinion whose basis is missing, cyclic, or itself ungrounded fails the audit")
 def _bad_basis_fails(ctx):
+    corpus = {"intake:1"}
+    # MISSING: the basis names an id that exists nowhere (not a claim, not the corpus).
+    missing = [{"id": "m", "statement": "s", "confidence": "inferred", "sources": [], "basis": ["nope"]}]
+    assert not audit(missing, corpus_ids=corpus).ok
+    # CYCLIC: two opinions whose bases point only at each other — no fact floor.
     cyc = [{"id": "a", "statement": "s", "confidence": "inferred", "sources": [], "basis": ["b"]},
            {"id": "b", "statement": "s", "confidence": "inferred", "sources": [], "basis": ["a"]}]
-    assert not audit(cyc, corpus_ids={"intake:1"}).ok
+    assert not audit(cyc, corpus_ids=corpus).ok
+    # ITSELF UNGROUNDED: o resolves to a present opinion u, but u is itself ungrounded (its own
+    # basis dangles), so the transitive walk never reaches a grounded fact.
+    chain = [{"id": "u", "statement": "s", "confidence": "inferred", "sources": [], "basis": ["ghost"]},
+             {"id": "o", "statement": "s", "confidence": "inferred", "sources": [], "basis": ["u"]}]
+    assert not audit(chain, corpus_ids=corpus).ok
 
 
 # ----- Scenario 3: the audit blocks ungrounded content before the mockup (via build_pipeline) -----
