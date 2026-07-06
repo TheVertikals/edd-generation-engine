@@ -4,13 +4,8 @@ from engine.bundle import Bundle
 from engine.gate import AutoApproveGate
 from engine.generator import FakeGenerator, GenResult
 from engine.inputpack import InputPack
+from engine.pipeline import build_pipeline
 from engine.runner import Runner
-from engine.stages.audit import GroundingAuditStage
-from engine.stages.intake import IntakeStage
-from engine.stages.mockup import MockupStage
-from engine.stages.research import ResearchStage
-from engine.stages.solution import SolutionStage
-from engine.stages.synthesize import SynthesizeStage
 
 
 def _pack(tmp_path):
@@ -55,8 +50,7 @@ def test_full_pipeline_produces_a_grounded_bundle(tmp_path):
     g = FakeGenerator(_responder)
     pack = _pack(tmp_path)
     b = Bundle(str(tmp_path / "b"))
-    stages = [IntakeStage(pack), ResearchStage(g), SolutionStage(g, pack),
-              GroundingAuditStage(generator=g), MockupStage(g, verifier=g), SynthesizeStage(g)]
+    stages = build_pipeline(pack, g)
     out = Runner(b, AutoApproveGate()).run(stages)
     assert out["status"] == "complete"
     assert out["completed"] == ["intake", "research", "solution", "audit", "mockup", "synthesize"]
@@ -79,8 +73,7 @@ def test_pipeline_blocks_ungrounded_solution_before_mockup(tmp_path):
     g = FakeGenerator(bad)
     pack = _pack(tmp_path)
     b = Bundle(str(tmp_path / "b"))
-    stages = [IntakeStage(pack), ResearchStage(g), SolutionStage(g, pack),
-              GroundingAuditStage(generator=g), MockupStage(g, verifier=g), SynthesizeStage(g)]
+    stages = build_pipeline(pack, g)
     out = Runner(b, AutoApproveGate()).run(stages)
     assert out["status"] == "blocked" and out["blocked_at"] == "audit"
     assert not b.exists("surfaces/prototype.html")   # mockup never ran
